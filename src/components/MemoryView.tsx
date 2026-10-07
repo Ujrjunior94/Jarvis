@@ -39,7 +39,6 @@ export const MemoryView: React.FC<MemoryViewProps> = ({
         </p>
       </div>
 
-      {/* 1. Short-Term Memory */}
       <div className={`p-5 rounded-2xl border ${isDark ? 'bg-slate-900/75 border-slate-800' : 'bg-white border-slate-200'}`}>
         <div className="flex items-center gap-2 mb-3">
           <Database className="w-4 h-4 text-sky-400" />
@@ -75,7 +74,6 @@ export const MemoryView: React.FC<MemoryViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Long-Term Memory Facts */}
       <div className={`p-5 rounded-2xl border ${isDark ? 'bg-slate-900/75 border-slate-800' : 'bg-white border-slate-200'}`}>
         <h2 className={`text-base font-semibold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
           02. Long-Term Memory (Fatos Relevantes e Regras Pessoais)
@@ -143,7 +141,6 @@ export const MemoryView: React.FC<MemoryViewProps> = ({
         </div>
       </div>
 
-      {/* 3. Tool History */}
       <div className={`p-5 rounded-2xl border ${isDark ? 'bg-slate-900/75 border-slate-800' : 'bg-white border-slate-200'}`}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">

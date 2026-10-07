@@ -22,7 +22,7 @@ Diferente de um chatbot comum, o JARVIS atua como o **núcleo de comando digital
 
 ---
 
-## 2. Como Executar o Projeto
+## 2. Como Executar o Projeto Localmente
 
 ### Pré-requisitos
 - Node.js 20+

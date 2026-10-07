@@ -13,11 +13,6 @@ import { permissionGuard } from '../permissions/guard';
 import { jarvisLogger } from '../lib/logger';
 import { memoryStore } from '../ai/memory/store';
 
-/**
- * Registro Central de Ferramentas do JARVIS
- * Concentra validação de entrada, checagem de permissões (READ / CONFIRM / CRITICAL),
- * execução isolada, tratamento de erros e auditoria de logs.
- */
 class ToolRegistry {
   private tools: Map<string, Tool<any, any>> = new Map();
 
@@ -74,7 +69,6 @@ class ToolRegistry {
       return res;
     }
 
-    // 1. Validação estrita de entrada
     const validation = tool.validate(rawInput || {});
     if (!validation.valid) {
       const res: ToolResult = {
@@ -105,7 +99,6 @@ class ToolRegistry {
     const parsedInput = (validation.parsed || rawInput || {}) as Record<string, unknown>;
     const prefs = memoryStore.getPreferences();
 
-    // 2. Verificação de Permissões (READ / CONFIRM / CRITICAL)
     const needsConfirmation = permissionGuard.requiresUserConfirmation(
       tool.permission,
       context.confirmedToken,
@@ -159,15 +152,12 @@ class ToolRegistry {
       return res;
     }
 
-    // Se havia token de confirmação válido, consumi-lo
     if (context.confirmedToken) {
       permissionGuard.consumeConfirmation(context.confirmedToken);
     }
 
-    // 3. Execução da ferramenta
     const result = await tool.execute(parsedInput, context);
 
-    // 4. Registro em Log Auditável
     jarvisLogger.logToolExecution({
       toolName: tool.name,
       project: tool.project,
@@ -181,7 +171,6 @@ class ToolRegistry {
       errorCategory: result.errorCategory,
     });
 
-    // 5. Atualização da Memória de Curto Prazo
     if (result.success) {
       memoryStore.updateShortTermContext({
         lastProject: tool.project,

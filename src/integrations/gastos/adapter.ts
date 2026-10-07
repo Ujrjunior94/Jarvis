@@ -1,14 +1,5 @@
 import { IntegrationStatus } from '../../types/jarvis';
 
-/**
- * Camada de Integração Preparada: CONTROLE DE GASTOS
- *
- * IMPORTANTE: Este projeto ainda será criado externamente.
- * O JARVIS mantém o módulo e as interfaces prontas para acoplamento futuro
- * sem necessidade de alterar o núcleo do agente.
- * Possui um Sandbox Local opcional para testar o fluxo de Permissões (READ, CONFIRM, CRITICAL).
- */
-
 export interface GastoPessoalItem {
   id: string;
   data: string;

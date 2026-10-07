@@ -6,12 +6,6 @@ import {
 } from '../../types/jarvis';
 import { controleGastosAdapter } from '../../integrations/gastos/adapter';
 
-/**
- * Módulo de Ferramentas: CONTROLE DE GASTOS
- * Preparado para integração futura quando o terceiro projeto for construído.
- * Inclui controles de permissão rigorosos (READ, CONFIRM, CRITICAL).
- */
-
 export const consultarGastosTool: Tool<{ categoria?: string }> = {
   name: 'consultarGastos',
   description: 'Consulta despesas pessoais no módulo Controle de Gastos (atualmente em modo preparado/sandbox).',

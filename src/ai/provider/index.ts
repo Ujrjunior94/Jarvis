@@ -8,17 +8,6 @@ import {
   ToolResult,
 } from '../../types/jarvis';
 
-/**
- * Camada AI Provider Desacoplada
- * Suporta:
- * - Gemini (@google/genai)
- * - OpenRouter (compatível com REST OpenAI)
- * - OpenAI
- * - Motor Estruturado Local (Fallback resiliente que sintetiza respostas em português a partir dos ToolResults)
- *
- * A escolha ocorre via configuração/env (AI_PROVIDER, AI_MODEL) sem necessidade de reescrever o sistema.
- */
-
 function synthesizeDeterministicPortugueseResponse(
   userMessage: string,
   toolOutputs?: ToolResult[],

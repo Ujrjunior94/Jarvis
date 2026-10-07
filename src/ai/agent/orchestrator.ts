@@ -13,14 +13,6 @@ import { permissionGuard } from '../../permissions/guard';
 import { buildJarvisSystemPrompt } from '../prompts/system';
 import { AIProviderFactory } from '../provider';
 
-/**
- * Orquestrador Central do Agente JARVIS
- * Separa rigorosamente:
- * 1. Interpretação de Intenção e Contexto
- * 2. Verificação de Confirmações Pendentes (Permissões CONFIRM / CRITICAL)
- * 3. Execução Estruturada de Ferramentas
- * 4. Síntese de Resposta Final (sem jamais expor cadeia de pensamento interna)
- */
 export interface OrchestratorTurnOutput {
   userMessage: ConversationMessage;
   assistantMessage: ConversationMessage;
@@ -61,7 +53,6 @@ export async function processUserTurn(params: {
     },
   };
 
-  // Registrar mensagem do usuário
   const userMsg: ConversationMessage = {
     id: `msg_u_${Date.now()}`,
     role: 'user',
@@ -76,7 +67,6 @@ export async function processUserTurn(params: {
   };
   memoryStore.appendMessage(conversationId, userMsg);
 
-  // Caso 1: Cancelamento explícito de operação crítica/confirm
   if (params.cancelToken) {
     permissionGuard.cancelConfirmation(params.cancelToken);
     const cancelMsg: ConversationMessage = {
@@ -101,7 +91,6 @@ export async function processUserTurn(params: {
     };
   }
 
-  // Verificar se o usuário respondeu "sim" / "confirmo" no texto para uma confirmação pendente
   const normalizedText = params.message.toLowerCase().trim();
   const latestPending = permissionGuard.getLatestPendingConfirmation();
   const isVerbalConfirmation =
@@ -150,14 +139,12 @@ export async function processUserTurn(params: {
     }
   }
 
-  // 2. Interpretar intenção natural + contexto
   const intent = interpretNaturalIntent(params.message, context);
   memoryStore.updateShortTermContext({
     lastIntent: intent.intent,
     lastPeriod: intent.entities.period || shortTerm.lastPeriod || 'semana',
   });
 
-  // Se o usuário pediu para guardar um fato na memória ("JARVIS, lembre que...")
   if (
     normalizedText.startsWith('jarvis, lembre que') ||
     normalizedText.startsWith('lembre que') ||
@@ -182,7 +169,6 @@ export async function processUserTurn(params: {
     };
   }
 
-  // 3. Executar ferramenta(s) se aplicável
   const toolResults: ToolResult[] = [];
   let pendingConfirmation: PendingConfirmation | undefined;
 
@@ -207,14 +193,12 @@ export async function processUserTurn(params: {
     }
   }
 
-  // 4. Gerar resposta final limpa pelo AI Provider (sem expor cadeia de pensamento)
   let finalAnswerText: string;
   let providerUsed: string = prefs.aiProvider;
 
   if (pendingConfirmation) {
     finalAnswerText = pendingConfirmation.summary;
   } else if (toolResults.length > 0 && !toolResults[0].success) {
-    // Nunca inventar resposta quando uma ferramenta estiver indisponível
     finalAnswerText = toolResults[0].message;
   } else {
     const provider = AIProviderFactory.getProvider(prefs.aiProvider);

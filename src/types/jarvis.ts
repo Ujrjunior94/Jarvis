@@ -97,7 +97,7 @@ export interface Intent {
   entities: {
     date?: string;
     shift?: 'manha' | 'tarde' | 'noite' | 'madrugada' | 'all';
-    period?: 'hoje' | 'amanha' | 'semana' | 'mes_atual' | 'mes_passado';
+    period?: 'hoje' | 'semana' | 'mes_atual' | 'mes_passado';
     category?: string;
     amount?: number;
     description?: string;

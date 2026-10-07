@@ -16,7 +16,6 @@ import {
   AttachmentInput,
   ConversationMessage,
   Memory,
-  ToolPermission,
 } from '../types/jarvis';
 import { useVoiceAssistant } from '../lib/voice';
 
@@ -79,7 +78,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  // Auto-speak assistant responses if enabled in preferences
   useEffect(() => {
     if (!memory.preferences.autoSpeakResponses || messages.length === 0) return;
     const last = messages[messages.length - 1];
@@ -152,7 +150,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   return (
     <div className="flex flex-col h-[calc(100vh-7.5rem)] md:h-[calc(100vh-4.5rem)] max-w-5xl mx-auto w-full">
-      {/* Barra contextual de memória de curto prazo + comandos rápidos */}
       <div
         className={`flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b text-xs ${
           isDark ? 'border-slate-800/80 bg-slate-900/40 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'
@@ -192,7 +189,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       </div>
 
-      {/* Sugestões de Comandos Naturais */}
       <div
         className={`px-4 py-2.5 border-b overflow-x-auto flex items-center gap-2 ${
           isDark ? 'border-slate-800/60 bg-slate-950/60' : 'border-slate-200 bg-white'
@@ -214,7 +210,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         ))}
       </div>
 
-      {/* Feed de Conversa */}
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-5">
         {messages.map((msg) => {
           const isUser = msg.role === 'user';
@@ -265,7 +260,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
                 <div className="space-y-1">{renderFormattedContent(msg.content)}</div>
 
-                {/* Painel de Confirmação Obrigatória para Permissões CONFIRM / CRITICAL */}
                 {msg.pendingConfirmation && (
                   <div
                     className={`mt-4 pt-3 border-t ${
@@ -305,7 +299,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   </div>
                 )}
 
-                {/* Resposta Estruturada de Execução de Ferramenta (Sem expor cadeia de pensamento) */}
                 {hasTools && (
                   <div
                     className={`mt-3 pt-2.5 border-t text-xs ${
@@ -368,7 +361,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <div ref={bottomRef} />
       </div>
 
-      {/* Aviso de Voz ou Anexo */}
       {(voiceError || attachment) && (
         <div
           className={`px-4 py-2 border-t text-xs flex items-center justify-between ${
@@ -394,7 +386,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       )}
 
-      {/* Barra de Entrada Mobile-First (Microfone destacado, Anexo de Imagem/Arquivo, Enviar) */}
       <form
         onSubmit={handleSend}
         className={`p-3 border-t flex items-center gap-2 ${

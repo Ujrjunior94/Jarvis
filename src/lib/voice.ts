@@ -1,10 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
 
-/**
- * Arquitetura de Voz do JARVIS (Voice Input -> STT -> Agent -> TTS)
- * Utiliza Web Speech API nativa no navegador (Android/Chrome/Edge/Safari)
- * com fallback gracioso para simulação caso o navegador restrinja o microfone em iframe.
- */
 export function useVoiceAssistant(onTranscriptReady: (text: string) => void) {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -74,7 +69,6 @@ export function useVoiceAssistant(onTranscriptReady: (text: string) => void) {
 
     try {
       window.speechSynthesis.cancel();
-      // Remove markdown symbols for natural speech
       const cleanText = rawText
         .replace(/\*\*/g, '')
         .replace(/\*/g, '')

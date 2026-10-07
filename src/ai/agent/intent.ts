@@ -1,11 +1,5 @@
 import { AgentContext, Intent, ProjectId } from '../../types/jarvis';
 
-/**
- * Sistema de Interpretação de Intenções e Contexto Conversacional do JARVIS
- * Transforma linguagem natural em objetos estruturados Intent e resolve referências
- * contextuais (ex: "E descontando combustível?", "E no mês passado?").
- */
-
 function addDays(baseDateStr: string, days: number): string {
   const d = new Date(`${baseDateStr}T12:00:00`);
   if (isNaN(d.getTime())) return baseDateStr;
@@ -17,7 +11,6 @@ export function interpretNaturalIntent(rawMessage: string, context: AgentContext
   const text = rawMessage.toLowerCase().trim();
   const baseDate = context.currentDate || '2026-10-06';
 
-  // Extração de Data e Turno
   let date = baseDate;
   if (text.includes('amanhã') || text.includes('amanha')) {
     date = addDays(baseDate, 1);
@@ -33,7 +26,6 @@ export function interpretNaturalIntent(rawMessage: string, context: AgentContext
   else if (text.includes('tarde')) shift = 'tarde';
   else if (text.includes('noite') || text.includes('madrugada')) shift = 'noite';
 
-  // Extração de Período com herança de contexto conversacional
   let period: Intent['entities']['period'] =
     (context.memorySnapshot.lastPeriod as Intent['entities']['period']) || 'semana';
   if (text.includes('mês passado') || text.includes('mes passado') || text.includes('último mês')) {
@@ -44,14 +36,12 @@ export function interpretNaturalIntent(rawMessage: string, context: AgentContext
     period = 'semana';
   }
 
-  // Extração de valor monetário (ex: R$ 85,00 ou 120)
   let amount: number | undefined;
   const amountMatch = text.match(/(?:r\$\s*)?(\d+(?:[.,]\d{1,2})?)/i);
   if (amountMatch && !text.includes('2026')) {
     amount = parseFloat(amountMatch[1].replace(',', '.'));
   }
 
-  // 1. RESOLUÇÃO DE CONTINUIDADE DE CONTEXTO ("E descontando combustível?", "E no mês passado?")
   const isFollowUpDiscountFuel =
     (text.includes('descontando') || text.includes('menos o') || text.includes('tirando')) &&
     (text.includes('combustível') || text.includes('combustivel') || text.includes('gasolina'));
@@ -91,7 +81,6 @@ export function interpretNaturalIntent(rawMessage: string, context: AgentContext
     };
   }
 
-  // 2. INTENÇÕES DE SISTEMA / PROJETOS
   if (
     text.includes('quais são meus projetos') ||
     text.includes('quais sao meus projetos') ||
@@ -109,7 +98,6 @@ export function interpretNaturalIntent(rawMessage: string, context: AgentContext
     };
   }
 
-  // 3. INTENÇÕES CRÍTICAS / PERMISSÕES (Exclusão / Registro / Validação)
   if (
     (text.includes('exclua') || text.includes('excluir') || text.includes('apague') || text.includes('remover')) &&
     (text.includes('despesa') || text.includes('gasto') || text.includes('combustível') || text.includes('combustivel'))
@@ -167,7 +155,6 @@ export function interpretNaturalIntent(rawMessage: string, context: AgentContext
     };
   }
 
-  // 4. INTENÇÕES DO POSTO ADM
   if (
     (text.includes('analise') || text.includes('analisar') || text.includes('procure erros') || text.includes('inconsist')) &&
     text.includes('escala')
@@ -253,7 +240,6 @@ export function interpretNaturalIntent(rawMessage: string, context: AgentContext
     };
   }
 
-  // 5. INTENÇÕES DO ROTAPLANNER
   if (
     (text.includes('analise') || text.includes('analisar') || text.includes('desempenho')) &&
     (text.includes('ganho') || text.includes('lucro') || text.includes('entrega') || text.includes('financ'))
@@ -356,7 +342,6 @@ export function interpretNaturalIntent(rawMessage: string, context: AgentContext
     };
   }
 
-  // 6. INTENÇÕES DO CONTROLE DE GASTOS
   if (text.includes('saldo') || text.includes('resumo financeiro') || text.includes('controle de gastos')) {
     return {
       intent: 'gerar_resumo_financeiro',

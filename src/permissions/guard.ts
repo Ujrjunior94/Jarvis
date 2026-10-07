@@ -4,13 +4,6 @@ import {
   ToolPermission,
 } from '../types/jarvis';
 
-/**
- * Gerenciador de Permissões do JARVIS
- * Níveis:
- * - READ: Execução imediata de leitura e análise
- * - CONFIRM: Exige confirmação explícita antes de alterar ou registrar dados
- * - CRITICAL: Exige confirmação rigorosa antes de excluir ou executar ação destrutiva
- */
 class PermissionGuard {
   private pendingConfirmations: Map<string, PendingConfirmation> = new Map();
 

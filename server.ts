@@ -12,10 +12,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Permitir envio de imagens/documentos base64 para análise multimodal
   app.use(express.json({ limit: '12mb' }));
-
-  // Rotas de API seguras do JARVIS (/api/chat, /api/agent, /api/tools, /api/memory, /api/health, /api/integrations)
   app.use('/api', createApiRouter());
 
   if (process.env.NODE_ENV !== 'production') {

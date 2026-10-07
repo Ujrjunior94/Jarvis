@@ -5,11 +5,6 @@ import {
   ToolPermission,
 } from '../types/jarvis';
 
-/**
- * Sistema de Logs do JARVIS
- * Registra execuções de ferramentas, duração, status e usuário.
- * Nunca armazena segredos ou chaves de API.
- */
 class JarvisLogger {
   private logs: ToolExecutionLog[] = [];
   private readonly maxLogs = 200;

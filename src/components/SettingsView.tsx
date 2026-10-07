@@ -41,7 +41,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </h1>
       </div>
 
-      {/* Navegação das 7 Seções Obrigatórias */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
         {tabs.map((t) => (
           <button
@@ -61,7 +60,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         ))}
       </div>
 
-      {/* Conteúdo da Seção */}
       <div className={`p-6 rounded-2xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'}`}>
         {activeTab === 'ia' && (
           <div className="space-y-5">

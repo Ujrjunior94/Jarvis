@@ -64,11 +64,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   const totalTools =
-    projects.reduce((acc, p) => acc + p.toolsCount, 0) + 2; // +2 system tools
+    projects.reduce((acc, p) => acc + p.toolsCount, 0) + 2;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 pb-24 md:pb-10 space-y-8">
-      {/* Cabeçalho Editorial */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800/80 pb-5">
         <div>
           <p className="text-xs font-mono text-sky-400">Núcleo de Orquestração Pessoal · V1.0.0</p>
@@ -89,7 +88,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </button>
       </div>
 
-      {/* Métricas do Núcleo JARVIS */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
         <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-slate-200'}`}>
           <span className="text-xs text-slate-400">Versão do JARVIS</span>
@@ -138,7 +136,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Cards dos 3 Projetos Controlados */}
       <div>
         <h2 className={`text-lg font-semibold mb-3.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
           01. Projetos Controlados pela Camada de Orquestração
@@ -263,7 +260,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Últimas Execuções e Logs de Ferramentas */}
       <div>
         <h2 className={`text-lg font-semibold mb-3.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
           02. Registro Auditável de Execução de Ferramentas (Logs)

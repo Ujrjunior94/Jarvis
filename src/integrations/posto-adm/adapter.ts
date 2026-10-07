@@ -1,14 +1,5 @@
 import { IntegrationStatus } from '../../types/jarvis';
 
-/**
- * Camada de Integração Desacoplada: POSTO ADM
- * Repositório alvo: https://github.com/Ujrjunior94/Projeto-posto1
- *
- * IMPORTANTE: O código do Posto ADM não é misturado ao JARVIS.
- * Esta camada consulta a API externa quando POSTO_ADM_API_URL está configurada,
- * ou opera através de um Adapter MOCK claramente identificado para desenvolvimento/testes.
- */
-
 export interface FuncionarioPosto {
   id: string;
   nome: string;
@@ -27,6 +18,7 @@ export interface EscalaDiaItem {
   statusNoDia: 'Escalado' | 'Folga' | 'Férias';
   horasConsecutivasTrabalhadas?: number;
   intervaloInterjornadaHoras?: number;
+  observacoes?: string;
 }
 
 export interface EscalaDiaPosto {
@@ -175,7 +167,6 @@ class PostoAdmAdapter {
     const dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
     const diaSemana = dias[validDate.getDay()];
 
-    // Determinismo baseado no dia para permitir testes realistas de escala
     const isTomorrowOrOdd = validDate.getDate() % 2 !== 0;
 
     let escalados: EscalaDiaItem[] = [
@@ -217,7 +208,7 @@ class PostoAdmAdapter {
         bombaOuSetor: 'Ilha 1, 2 e 3 (Diesel)',
         statusNoDia: 'Escalado',
         horasConsecutivasTrabalhadas: 8,
-        intervaloInterjornadaHoras: 9, // < 11h CLT interjornada (para auditoria detectar!)
+        intervaloInterjornadaHoras: 9,
       },
       {
         funcionarioId: 'func_05',
@@ -278,11 +269,7 @@ class PostoAdmAdapter {
     };
   }
 
-  public async consultarFuncionarios(filtroStatus?: string): Promise<{
-    isMockData: boolean;
-    total: number;
-    funcionarios: FuncionarioPosto[];
-  }> {
+  public async consultarFuncionarios(filtroStatus?: string) {
     this.ensureAvailable();
     let lista = [...MOCK_FUNCIONARIOS];
     if (filtroStatus) {
@@ -392,14 +379,7 @@ class PostoAdmAdapter {
     };
   }
 
-  public async analisarEscala(data?: string): Promise<{
-    isMockData: boolean;
-    dataAnalisada: string;
-    scoreConformidade: number;
-    statusGeral: 'ATENÇÃO_NECESSÁRIA' | 'REGULAR';
-    inconsistencias: InconsistenciaEscala[];
-    resumoAnalise: string;
-  }> {
+  public async analisarEscala(data?: string) {
     this.ensureAvailable();
     const escala = await this.consultarEscala(data || new Date().toISOString().split('T')[0]);
     const inconsistencias: InconsistenciaEscala[] = [

@@ -65,7 +65,6 @@ export const ToolsSandboxView: React.FC<ToolsSandboxViewProps> = ({
           </p>
         </div>
 
-        {/* Filtros de Projeto */}
         <div className={`flex items-center gap-1 p-1 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
           {[
             { id: 'all', label: 'Todas' },
@@ -90,7 +89,6 @@ export const ToolsSandboxView: React.FC<ToolsSandboxViewProps> = ({
         </div>
       </div>
 
-      {/* Parâmetros de Teste Rápido */}
       <div className={`p-4 rounded-2xl border flex flex-wrap items-center gap-4 text-xs ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200'}`}>
         <span className="font-semibold text-sky-400">Parâmetros de Simulação:</span>
         <label className="flex items-center gap-2">
@@ -120,7 +118,6 @@ export const ToolsSandboxView: React.FC<ToolsSandboxViewProps> = ({
         </label>
       </div>
 
-      {/* Resultado da Execução em Destaque */}
       {activeToolResult && (
         <div
           className={`p-5 rounded-2xl border ${
@@ -167,7 +164,6 @@ export const ToolsSandboxView: React.FC<ToolsSandboxViewProps> = ({
         </div>
       )}
 
-      {/* Grid de Ferramentas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredTools.map((tool) => (
           <div

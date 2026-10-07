@@ -12,17 +12,6 @@ import { jarvisLogger } from '../lib/logger';
 export function createApiRouter() {
   const router = express.Router();
 
-  /**
-   * 1. GET /api/health
-   * Retorna saúde do sistema exatamente como especificado:
-   * {
-   *   "status": "ok",
-   *   "version": "1.0.0",
-   *   "ai": "configured",
-   *   "memory": "configured",
-   *   "tools": { "posto": "mock", "rota": "mock", "gastos": "not_configured" }
-   * }
-   */
   router.get('/health', async (_req: Request, res: Response) => {
     const postoStatus = await postoAdmAdapter.checkStatus();
     const rotaStatus = await rotaPlannerAdapter.checkStatus();
@@ -52,10 +41,6 @@ export function createApiRouter() {
     });
   });
 
-  /**
-   * 2. POST /api/chat & POST /api/agent
-   * Processa mensagens em linguagem natural, anexos multimodais e confirmações de permissão.
-   */
   const handleAgentTurn = async (req: Request, res: Response) => {
     try {
       const { message, conversationId, confirmedToken, cancelToken, attachment } = req.body || {};
@@ -96,10 +81,6 @@ export function createApiRouter() {
   router.post('/chat', handleAgentTurn);
   router.post('/agent', handleAgentTurn);
 
-  /**
-   * 3. GET /api/tools & POST /api/tools
-   * Lista todas as ferramentas registradas ou executa uma ferramenta diretamente no modo Dev/Sandbox.
-   */
   router.get('/tools', (_req: Request, res: Response) => {
     const tools = toolRegistry.getAllTools().map((t) => ({
       name: t.name,
@@ -152,10 +133,6 @@ export function createApiRouter() {
     }
   });
 
-  /**
-   * 4. GET /api/memory, POST /api/memory, DELETE /api/memory
-   * Gerencia memória de curto prazo, fatos de longo prazo, preferências e histórico.
-   */
   router.get('/memory', (_req: Request, res: Response) => {
     res.json(memoryStore.getFullMemory());
   });
@@ -196,11 +173,6 @@ export function createApiRouter() {
     res.status(400).json({ error: 'Ação de memória inválida.' });
   });
 
-  /**
-   * 5. GET /api/integrations & POST /api/integrations
-   * Consulta status das integrações (Posto ADM, RotaPlanner, Controle de Gastos)
-   * e permite simular modo Offline/Online para testar resiliência e tratamento de erros.
-   */
   router.get('/integrations', async (_req: Request, res: Response) => {
     const projects = await getConnectedProjectsOverview();
     res.json({

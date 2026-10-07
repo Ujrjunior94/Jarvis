@@ -3,24 +3,11 @@ import {
   ConversationMessage,
   LongTermFact,
   Memory,
-  ProjectId,
-  ToolExecutionLog,
   UserPreferences,
 } from '../../types/jarvis';
 import { jarvisLogger } from '../../lib/logger';
 import { permissionGuard } from '../../permissions/guard';
 
-/**
- * Arquitetura de Memória do JARVIS
- * Separa claramente:
- * 1. Short-Term Memory (contexto imediato da conversa atual)
- * 2. Long-Term Memory / Facts (fatos relevantes persistentes, sem poluição indiscriminada)
- * 3. User Preferences (configurações de voz, modelo, tema, segurança)
- * 4. Conversation History (histórico estruturado de sessões)
- * 5. Tool History (auditoria de ferramentas executadas)
- *
- * Preparado para adaptador PostgreSQL / Supabase via interface de repositório.
- */
 class JarvisMemoryStore {
   private shortTerm: Memory['shortTerm'] = {
     lastIntent: undefined,
@@ -212,7 +199,7 @@ class JarvisMemoryStore {
     return conv;
   }
 
-  public getToolHistory(): ToolExecutionLog[] {
+  public getToolHistory() {
     return jarvisLogger.getLogs(50);
   }
 

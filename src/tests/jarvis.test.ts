@@ -97,7 +97,6 @@ describe('JARVIS V1 — Suíte de Testes do Núcleo de Assistência Digital', ()
     expect(attemptWithoutConfirm.confirmationToken).toBeDefined();
     expect(attemptWithoutConfirm.message).toContain('Deseja realmente excluir?');
 
-    // Agora executa passando o token confirmado pelo usuário
     const confirmedExecution = await toolRegistry.executeTool(
       'excluirGasto',
       { alvo: 'combustível' },

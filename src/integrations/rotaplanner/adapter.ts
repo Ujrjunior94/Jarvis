@@ -1,13 +1,5 @@
 import { IntegrationStatus } from '../../types/jarvis';
 
-/**
- * Camada de Integração Desacoplada: ROTAPLANNER
- * Repositório alvo: https://github.com/Ujrjunior94/Rotaplanner
- *
- * IMPORTANTE: Nenhum código interno do RotaPlanner é copiado para o JARVIS.
- * O JARVIS atua exclusivamente como orquestrador consultando endpoints ou mocks explícitos.
- */
-
 export interface ResumoGanhosRota {
   periodo: string;
   isMockData: boolean;
@@ -130,7 +122,6 @@ class RotaPlannerAdapter {
       };
     }
 
-    // Default: Semana Atual
     return {
       periodo: 'Semana Atual (01/10 a 06/10/2026)',
       isMockData: this.isMockMode(),
