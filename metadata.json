@@ -1,0 +1,6 @@
+{
+  "name": "JARVIS — Núcleo de Assistência Digital",
+  "description": "Agente pessoal de IA e camada de orquestração modular conectada ao Posto ADM, RotaPlanner e Controle de Gastos.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
