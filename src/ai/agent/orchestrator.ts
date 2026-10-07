@@ -5,6 +5,7 @@ import {
   Intent,
   PendingConfirmation,
   ToolResult,
+  User,
 } from '../../types/jarvis';
 import { memoryStore } from '../memory/store';
 import { interpretNaturalIntent } from './intent';
@@ -12,6 +13,8 @@ import { toolRegistry } from '../../tools/registry';
 import { permissionGuard } from '../../permissions/guard';
 import { buildJarvisSystemPrompt } from '../prompts/system';
 import { AIProviderFactory } from '../provider';
+import { getCurrentDateTime } from '../../lib/datetime';
+import { assertValidAttachments } from '../../lib/validation';
 
 export interface OrchestratorTurnOutput {
   userMessage: ConversationMessage;
@@ -27,19 +30,28 @@ export async function processUserTurn(params: {
   confirmedToken?: string;
   cancelToken?: string;
   attachment?: AttachmentInput;
+  user?: User;
 }): Promise<OrchestratorTurnOutput> {
+  const currentDt = getCurrentDateTime();
   const conversationId = params.conversationId || 'conv_principal';
   const prefs = memoryStore.getPreferences();
   const shortTerm = memoryStore.getShortTermContext();
-  const currentDate = '2026-10-06';
+  const currentDate = currentDt.date;
+
+  // Validação estrita de anexo (rejeita arquivos inválidos ou gigantes)
+  if (params.attachment) {
+    assertValidAttachments([params.attachment]);
+  }
+
+  const user: User = params.user || {
+    id: 'usr_dev_master',
+    name: 'Ubirajara Junior',
+    role: 'admin',
+    preferences: prefs,
+  };
 
   const context: AgentContext = {
-    user: {
-      id: 'usr_ubirajara',
-      name: 'Ubirajara Junior',
-      role: 'admin',
-      preferences: prefs,
-    },
+    user,
     conversationId,
     currentDate,
     confirmedToken: params.confirmedToken,
@@ -57,7 +69,7 @@ export async function processUserTurn(params: {
     id: `msg_u_${Date.now()}`,
     role: 'user',
     content: params.message,
-    timestamp: new Date().toISOString(),
+    timestamp: currentDt.iso,
     attachment: params.attachment
       ? {
           name: params.attachment.name,
@@ -67,14 +79,21 @@ export async function processUserTurn(params: {
   };
   memoryStore.appendMessage(conversationId, userMsg);
 
+  // 1. Cancelamento explícito de token
   if (params.cancelToken) {
-    permissionGuard.cancelConfirmation(params.cancelToken);
+    const cancelResult = permissionGuard.cancelConfirmation(
+      params.cancelToken,
+      user.id,
+      conversationId
+    );
     const cancelMsg: ConversationMessage = {
       id: `msg_a_${Date.now() + 1}`,
       role: 'assistant',
-      content: 'Operação cancelada conforme solicitado. Nenhuma alteração foi realizada no sistema.',
-      timestamp: new Date().toISOString(),
-      providerUsed: prefs.aiProvider,
+      content: cancelResult.success
+        ? 'Operação cancelada com segurança. Nenhuma alteração foi realizada nos seus sistemas.'
+        : `Não foi possível cancelar: ${cancelResult.error || 'confirmação não encontrada'}.`,
+      timestamp: getCurrentDateTime().iso,
+      providerUsed: 'permission-guard',
     };
     memoryStore.appendMessage(conversationId, cancelMsg);
     return {
@@ -91,8 +110,11 @@ export async function processUserTurn(params: {
     };
   }
 
+  // 2. Verificação de confirmação explícita ou verbal
   const normalizedText = params.message.toLowerCase().trim();
-  const latestPending = permissionGuard.getLatestPendingConfirmation();
+  const userPendingList = permissionGuard.listPending(user.id, conversationId);
+  const latestPending = userPendingList.length > 0 ? userPendingList[userPendingList.length - 1] : undefined;
+
   const isVerbalConfirmation =
     latestPending &&
     (normalizedText === 'sim' ||
@@ -104,9 +126,16 @@ export async function processUserTurn(params: {
   const activeConfirmToken = params.confirmedToken || (isVerbalConfirmation ? latestPending?.token : undefined);
 
   if (activeConfirmToken) {
-    const pendingObj = permissionGuard.getPendingConfirmation(activeConfirmToken);
-    if (pendingObj) {
+    const validation = permissionGuard.validateAndConsumeConfirmation(
+      activeConfirmToken,
+      user.id,
+      conversationId
+    );
+
+    if (validation.valid && validation.confirmation) {
+      const pendingObj = validation.confirmation;
       context.confirmedToken = activeConfirmToken;
+
       const toolResult = await toolRegistry.executeTool(
         pendingObj.toolName,
         pendingObj.inputParams,
@@ -117,7 +146,7 @@ export async function processUserTurn(params: {
         id: `msg_a_${Date.now() + 1}`,
         role: 'assistant',
         content: toolResult.message,
-        timestamp: new Date().toISOString(),
+        timestamp: getCurrentDateTime().iso,
         toolResults: [toolResult],
         providerUsed: prefs.aiProvider,
       };
@@ -136,15 +165,39 @@ export async function processUserTurn(params: {
         },
         toolResults: [toolResult],
       };
+    } else if (!validation.valid) {
+      const errorMsg: ConversationMessage = {
+        id: `msg_a_${Date.now() + 1}`,
+        role: 'assistant',
+        content: `Falha na confirmação: ${validation.error}`,
+        timestamp: getCurrentDateTime().iso,
+        providerUsed: 'permission-guard',
+      };
+      memoryStore.appendMessage(conversationId, errorMsg);
+
+      return {
+        userMessage: userMsg,
+        assistantMessage: errorMsg,
+        intent: {
+          intent: 'falha_confirmacao',
+          confidence: 1,
+          project: 'system',
+          entities: {},
+          rawQuery: params.message,
+        },
+        toolResults: [],
+      };
     }
   }
 
+  // 3. Interpretação de Intenção
   const intent = interpretNaturalIntent(params.message, context);
   memoryStore.updateShortTermContext({
     lastIntent: intent.intent,
     lastPeriod: intent.entities.period || shortTerm.lastPeriod || 'semana',
   });
 
+  // 4. Comando direto de memória: "JARVIS, lembre que..."
   if (
     normalizedText.startsWith('jarvis, lembre que') ||
     normalizedText.startsWith('lembre que') ||
@@ -155,8 +208,8 @@ export async function processUserTurn(params: {
     const memMsg: ConversationMessage = {
       id: `msg_a_${Date.now() + 1}`,
       role: 'assistant',
-      content: `Registrado na memória de longo prazo: *"${savedFact.fact}"*.`,
-      timestamp: new Date().toISOString(),
+      content: `Registrado com sucesso na memória: *"${savedFact.fact}"*.`,
+      timestamp: getCurrentDateTime().iso,
       intent,
       providerUsed: prefs.aiProvider,
     };
@@ -169,6 +222,7 @@ export async function processUserTurn(params: {
     };
   }
 
+  // 5. Execução de Ferramenta
   const toolResults: ToolResult[] = [];
   let pendingConfirmation: PendingConfirmation | undefined;
 
@@ -193,6 +247,7 @@ export async function processUserTurn(params: {
     }
   }
 
+  // 6. Geração da resposta final via AI Provider
   let finalAnswerText: string;
   let providerUsed: string = prefs.aiProvider;
 
@@ -224,7 +279,7 @@ export async function processUserTurn(params: {
     id: `msg_a_${Date.now() + 1}`,
     role: 'assistant',
     content: finalAnswerText,
-    timestamp: new Date().toISOString(),
+    timestamp: getCurrentDateTime().iso,
     intent,
     toolResults: toolResults.length > 0 ? toolResults : undefined,
     pendingConfirmation,

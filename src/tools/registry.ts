@@ -13,6 +13,14 @@ import { permissionGuard } from '../permissions/guard';
 import { jarvisLogger } from '../lib/logger';
 import { memoryStore } from '../ai/memory/store';
 
+export function isToolSandboxEnabled(): boolean {
+  if (process.env.TOOL_SANDBOX_ENABLED !== undefined) {
+    return process.env.TOOL_SANDBOX_ENABLED === 'true';
+  }
+  // Em produção padrão é falso por segurança, em desenvolvimento é verdadeiro
+  return process.env.NODE_ENV !== 'production';
+}
+
 class ToolRegistry {
   private tools: Map<string, Tool<any, any>> = new Map();
 
@@ -99,11 +107,12 @@ class ToolRegistry {
     const parsedInput = (validation.parsed || rawInput || {}) as Record<string, unknown>;
     const prefs = memoryStore.getPreferences();
 
-    const needsConfirmation = permissionGuard.requiresUserConfirmation(
-      tool.permission,
-      context.confirmedToken,
-      prefs.requireConfirmLevelApproval
-    );
+    const needsConfirmation =
+      !context.confirmedToken &&
+      permissionGuard.requiresUserConfirmation(
+        tool.permission,
+        prefs.requireConfirmLevelApproval
+      );
 
     if (needsConfirmation) {
       const prep = tool.prepareConfirmation
@@ -119,6 +128,8 @@ class ToolRegistry {
         permission: tool.permission,
         inputParams: parsedInput,
         summary: prep.summary,
+        userId: context.user?.id || 'usr_dev_master',
+        conversationId: context.conversationId || 'default-chat',
       });
 
       const res: ToolResult = {

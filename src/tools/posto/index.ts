@@ -6,6 +6,7 @@ import {
   ToolResult,
 } from '../../types/jarvis';
 import { postoAdmAdapter } from '../../integrations/posto-adm/adapter';
+import { getCurrentDateTime } from '../../lib/datetime';
 
 function handlePostoError(toolName: string, permission: ToolPermission, start: number, err: unknown): ToolResult {
   const msg = err instanceof Error ? err.message : 'Erro desconhecido ao acessar Posto ADM';
@@ -44,14 +45,14 @@ export const consultarEscalaTool: Tool<{ data?: string; turno?: string }> = {
     },
   },
   validate: (input) => {
-    const data = typeof input.data === 'string' && input.data.trim() ? input.data.trim() : '2026-10-06';
+    const data = typeof input.data === 'string' && input.data.trim() ? input.data.trim() : getCurrentDateTime().date;
     const turno = typeof input.turno === 'string' ? input.turno : 'all';
     return { valid: true, parsed: { data, turno } };
   },
   execute: async (input, context: AgentContext) => {
     const start = Date.now();
     try {
-      const targetDate = input.data || context.currentDate || '2026-10-06';
+      const targetDate = input.data || context.currentDate || getCurrentDateTime().date;
       const result = await postoAdmAdapter.consultarEscala(targetDate, input.turno);
       return {
         success: true,
@@ -284,7 +285,7 @@ export const validarEscalaTool: Tool<{ data: string; alteracaoProposta?: string 
     },
   },
   validate: (input) => {
-    const data = typeof input.data === 'string' && input.data.trim() ? input.data.trim() : '2026-10-06';
+    const data = typeof input.data === 'string' && input.data.trim() ? input.data.trim() : getCurrentDateTime().date;
     const alteracaoProposta =
       typeof input.alteracaoProposta === 'string'
         ? input.alteracaoProposta

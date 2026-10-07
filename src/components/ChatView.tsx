@@ -55,6 +55,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 }) => {
   const [input, setInput] = useState('');
   const [attachment, setAttachment] = useState<AttachmentInput | undefined>(undefined);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [expandedToolsMsgId, setExpandedToolsMsgId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -97,8 +98,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUploadError(null);
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const allowedMimes = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
+    if (!allowedMimes.includes(file.type)) {
+      setUploadError(`Formato não suportado (${file.type || 'desconhecido'}). Envie PNG, JPEG, WEBP ou PDF.`);
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError(`Arquivo muito grande (${(file.size / (1024 * 1024)).toFixed(1)} MB). O limite máximo por arquivo é 10 MB.`);
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = typeof reader.result === 'string' ? reader.result : '';
@@ -361,17 +377,22 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <div ref={bottomRef} />
       </div>
 
-      {(voiceError || attachment) && (
+      {(voiceError || attachment || uploadError) && (
         <div
           className={`px-4 py-2 border-t text-xs flex items-center justify-between ${
             isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
           }`}
         >
-          {attachment ? (
+          {uploadError ? (
+            <div className="flex items-center justify-between w-full text-rose-400">
+              <span>{uploadError}</span>
+              <button onClick={() => setUploadError(null)} className="hover:underline ml-2">Fechar</button>
+            </div>
+          ) : attachment ? (
             <div className="flex items-center gap-2">
               <Paperclip className="w-3.5 h-3.5 text-sky-400" />
               <span>
-                Anexo pronto para visão multimodal: <strong>{attachment.name}</strong>
+                Anexo pronto: <strong>{attachment.name}</strong>
               </span>
               <button
                 onClick={() => setAttachment(undefined)}
@@ -395,7 +416,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,.pdf,.txt,.csv,.json"
+          accept="image/png,image/jpeg,image/webp,application/pdf"
           onChange={handleFileChange}
           className="hidden"
         />

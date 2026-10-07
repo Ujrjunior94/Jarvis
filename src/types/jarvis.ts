@@ -18,13 +18,19 @@ export enum IntegrationStatus {
 
 export enum ErrorCategory {
   NONE = 'NONE',
-  NOT_FOUND = 'NOT_FOUND',
-  TOOL_UNAVAILABLE = 'TOOL_UNAVAILABLE',
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
   AUTH_ERROR = 'AUTH_ERROR',
-  CONNECTION_ERROR = 'CONNECTION_ERROR',
-  INVALID_INPUT = 'INVALID_INPUT',
-  UNAUTHORIZED = 'UNAUTHORIZED',
+  FORBIDDEN = 'FORBIDDEN',
+  NOT_FOUND = 'NOT_FOUND',
+  TOOL_ERROR = 'TOOL_ERROR',
+  AI_ERROR = 'AI_ERROR',
+  INTEGRATION_ERROR = 'INTEGRATION_ERROR',
+  INTERNAL_ERROR = 'INTERNAL_ERROR',
   CONFIRMATION_REQUIRED = 'CONFIRMATION_REQUIRED',
+  TOOL_UNAVAILABLE = 'TOOL_UNAVAILABLE',
+  INVALID_INPUT = 'INVALID_INPUT',
+  CONNECTION_ERROR = 'CONNECTION_ERROR',
+  UNAUTHORIZED = 'UNAUTHORIZED',
 }
 
 export type ProjectId = 'posto-adm' | 'rotaplanner' | 'controle-gastos' | 'system';
@@ -165,7 +171,10 @@ export interface PendingConfirmation {
   permission: ToolPermission;
   inputParams: Record<string, unknown>;
   summary: string;
+  userId: string;
+  conversationId: string;
   createdAt: string;
+  expiresAt: string;
 }
 
 export interface AttachmentInput {

@@ -1,68 +1,80 @@
-# JARVIS — Núcleo de Assistência Digital (V1)
+# JARVIS — Núcleo de Assistência Digital (V1.1)
 
-O **JARVIS** é um assistente pessoal de IA e uma **camada de orquestração modular** projetada para gerenciar e auditar múltiplos ecossistemas independentes por voz, texto e visão multimodal.
+O **JARVIS** é um assistente pessoal de inteligência artificial construído como uma **camada de orquestração desacoplada**, projetado para gerenciar, auditar e consultar ecossistemas independentes por texto, voz e visão multimodal.
 
-Diferente de um chatbot comum, o JARVIS atua como o **núcleo de comando digital**:
-- **O Modelo de IA (`AIProvider`)** é o cérebro (desacoplado entre Gemini, OpenRouter, OpenAI ou motor determinístico).
-- **As Ferramentas (`src/tools`)** são as mãos (26 ferramentas registradas com validação e retorno estruturado).
-- **A Memória (`src/ai/memory`)** é a lembrança (separada em curto prazo, fatos de longo prazo, preferências e histórico).
-- **As Integrações (`src/integrations`)** são os sistemas externos que ele acessa sem misturar os códigos-fontes.
-- **As Permissões (`READ`, `CONFIRM`, `CRITICAL`)** são os limites de segurança que impedem execuções destrutivas automáticas.
+Nesta versão **V1.1 (Core Stabilization & Production Readiness)**, o núcleo foi estabilizado com data e hora dinâmicas no fuso horário `America/Bahia`, proteção estrita de confirmação criptográfica de uso único com expiração e vínculo de conversa/usuário, camada de abstração de autenticação (`AuthProvider`), suporte multi-fornecedor (`Gemini`, `OpenRouter`, `OpenAI`, `Heuristic`), proteção de sandbox de ferramentas via `TOOL_SANDBOX_ENABLED`, limites de segurança para arquivos e sanitização de erros.
 
 ---
 
-## 1. Projetos Orquestrados pelo JARVIS
+## 🏛️ Princípio Fundamental de Arquitetura
 
-1. **POSTO ADM** (`https://github.com/Ujrjunior94/Projeto-posto1`)
-   - Gerenciamento de posto de combustível: escalas, frentistas, caixas, turnos, férias, folgas e auditoria de inconsistências (ex: interjornada < 11h).
-2. **ROTAPLANNER** (`https://github.com/Ujrjunior94/Rotaplanner`)
-   - Planejamento e controle de entregas, rotas, ganhos brutos, despesas, consumo de combustível, manutenção preventiva e lucro líquido.
-3. **CONTROLE DE GASTOS** *(Preparado para acoplamento futuro)*
-   - Módulo financeiro pessoal com interfaces prontas (`consultarGastos`, `registrarGasto`, `editarGasto`, `excluirGasto`, `consultarCategorias`, `calcularSaldo`, `gerarResumoFinanceiro`).
+O código dos projetos externos **NÃO é incorporado diretamente no JARVIS**. Cada sistema vive em seu próprio repositório e infraestrutura:
+
+```text
+                     ┌────────────────────────┐
+                     │         JARVIS         │
+                     │  Camada de Orquestração │
+                     └───────────┬────────────┘
+                                 │
+         ┌───────────────────────┼───────────────────────┐
+         ▼                       ▼                       ▼
+┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
+│    Posto ADM     │   │   RotaPlanner    │   │Controle de Gastos│
+│  (Projeto-posto1)│   │  (Rotaplanner)   │   │ (Módulo Futuro)  │
+│  [Adapter MOCK]  │   │  [Adapter MOCK]  │   │ [Adapter MOCK]   │
+└──────────────────┘   └──────────────────┘   └──────────────────┘
+```
 
 ---
 
-## 2. Como Executar o Projeto Localmente
+## 🚀 Novidades da Versão 1.1
 
-### Pré-requisitos
-- Node.js 20+
-- npm
+- 🕒 **Data e Hora Dinâmica (`America/Bahia`):** Remoção de todas as datas estáticas. Função centralizada `getCurrentDateTime()` com cálculo de intervalos relativos (*hoje*, *amanhã*, *ontem*, *esta semana*, *mês passado*).
+- 🧠 **Provedores de IA Desacoplados:** Fábrica multi-modelo respeitando `AI_PROVIDER` e `AI_MODEL`:
+  - **Google Gemini (@google/genai):** Padrão `gemini-3.8-flash`, com suporte a texto, documentos e imagens.
+  - **OpenRouter Gateway:** Modelos configuráveis via `OPENROUTER_API_KEY`.
+  - **OpenAI:** Suporte a `gpt-4o-mini` / `gpt-4o` via `OPENAI_API_KEY`.
+  - **Heuristic / Fallback:** Fallback determinístico factual que **nunca inventa dados nem alucina** quando um provedor não está configurado ou a rede falha.
+- 🔐 **Confirmação Criptográfica Segura (`PermissionGuard`):** Tokens descartáveis de uso único com hash de 24 bytes, validade de 5 minutos, e validação contra usuário e conversa de origem.
+- 🛡️ **Camada de Autenticação (`src/auth/`):** Abstração `AuthProvider`, `DevAuthProvider` com modo de desenvolvimento explícito, e preparação para `SupabaseAuthProvider`. Rotas mutáveis da API protegidas contra acesso anônimo em produção.
+- 🔒 **Proteção Sandbox (`TOOL_SANDBOX_ENABLED`):** Execução direta de ferramentas bloqueada em produção (HTTP 403), canalizando execuções através do Orquestrador.
+- 📂 **Segurança de Uploads:** Validação rigorosa de arquivos (apenas PNG, JPEG, WEBP e PDF; limite de 10 MB por arquivo e máximo de 4 anexos por turno).
+- 🏥 **Health Check Auditável (`GET /api/health`):** Informa o estado real de cada serviço (`ONLINE`, `MOCK`, `OFFLINE`, `NOT_CONFIGURED`), modo de memória (`IN_MEMORY` vs `SUPABASE`) e data/hora atual sem vazar segredos.
+- 🧪 **30 Testes Automatizados (Vitest):** Suíte cobrindo data/hora, intenção, contexto conversacional, permissões, expiração de token, memória, autenticação, upload e sanitização de erros.
 
-### Passo a passo
+---
 
-1. Instale as dependências:
+## 🛠️ Tecnologias Utilizadas
+
+- **Framework:** React 19 + TypeScript + Vite 8
+- **Estilização:** Tailwind CSS v4 (Design Mobile-First com suporte a modo Escuro e Claro)
+- **Servidor:** Express 4 + Node.js (com vite middleware integrado em dev)
+- **SDK de IA:** `@google/genai` (v2.4+) + Fetch para OpenRouter / OpenAI
+- **PWA:** `vite-plugin-pwa` (Service Worker offline-first e manifesto Web App)
+- **Voz:** Web Speech API nativa (Reconhecimento de fala STT e Síntese TTS em `pt-BR`)
+- **Testes:** Vitest 5
+
+---
+
+## 📦 Como Executar Localmente
+
+1. **Instale as dependências:**
    ```bash
    npm install
    ```
 
-2. Configure as variáveis de ambiente copiando `.env.example` para `.env.local`:
+2. **Configure o ambiente:**
    ```bash
    cp .env.example .env.local
    ```
 
-3. Inicie o servidor de desenvolvimento (Express + Vite + PWA na porta 3000):
-   ```bash
-   npm run dev
-   ```
-
-4. Execute a suíte de testes automatizados:
+3. **Execute os testes automatizados:**
    ```bash
    npm test
    ```
 
-5. Gere a versão de produção:
+4. **Inicie o servidor de desenvolvimento:**
    ```bash
-   npm run build
-   npm start
+   npm run dev
    ```
-
----
-
-## 3. Documentação Complementar
-
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Visão detalhada da arquitetura de orquestração e separação de camadas.
-- [`TOOLS.md`](./TOOLS.md) — Catálogo completo das 26 ferramentas, contratos de entrada/saída e níveis de permissão.
-- [`INTEGRATIONS.md`](./INTEGRATIONS.md) — Como conectar as APIs reais do Posto ADM, RotaPlanner e Controle de Gastos.
-- [`SECURITY.md`](./SECURITY.md) — Governança de permissões (`READ`, `CONFIRM`, `CRITICAL`) e proteção de chaves de API.
-- [`ENVIRONMENT.md`](./ENVIRONMENT.md) — Guia de variáveis de ambiente.
-- [`ROADMAP.md`](./ROADMAP.md) — Planejamento evolutivo da V1 até a V5.
+   Acesse: `http://localhost:3000`

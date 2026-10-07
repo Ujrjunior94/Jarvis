@@ -16,7 +16,7 @@ export function buildJarvisSystemPrompt(params: {
       : '- Nenhum fato persistente registrado.';
 
   return `Você é o JARVIS, o núcleo de assistência digital pessoal de Ubirajara Junior.
-Data de referência do sistema: ${params.currentDate}.
+Data e hora de referência do sistema: ${params.currentDate} (Fuso horário: America/Bahia).
 
 PERSONALIDADE E ESTILO:
 - Responda SEMPRE em português do Brasil.

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Play, ShieldAlert, CheckCircle2, Terminal } from 'lucide-react';
 import { ToolPermission, ToolResult } from '../types/jarvis';
+import { getCurrentDateTime } from '../lib/datetime';
 
 interface ToolInfo {
   name: string;
@@ -12,6 +13,7 @@ interface ToolInfo {
 
 interface ToolsSandboxViewProps {
   tools: ToolInfo[];
+  sandboxEnabled?: boolean;
   onExecuteToolDirect: (
     toolName: string,
     params: Record<string, unknown>,
@@ -22,13 +24,14 @@ interface ToolsSandboxViewProps {
 
 export const ToolsSandboxView: React.FC<ToolsSandboxViewProps> = ({
   tools,
+  sandboxEnabled = true,
   onExecuteToolDirect,
   isDark,
 }) => {
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [activeToolResult, setActiveToolResult] = useState<ToolResult | null>(null);
   const [runningTool, setRunningTool] = useState<string | null>(null);
-  const [customDate, setCustomDate] = useState('2026-10-06');
+  const [customDate, setCustomDate] = useState(() => getCurrentDateTime().date);
   const [customPeriod, setCustomPeriod] = useState('semana');
 
   const filteredTools =
@@ -64,6 +67,16 @@ export const ToolsSandboxView: React.FC<ToolsSandboxViewProps> = ({
             Teste individualmente cada ferramenta de Posto ADM, RotaPlanner e Controle de Gastos validando permissões (READ, CONFIRM, CRITICAL) e contratos JSON.
           </p>
         </div>
+
+        {!sandboxEnabled && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-300 flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <strong>Proteção Ativa:</strong> A execução direta via Sandbox está desativada (TOOL_SANDBOX_ENABLED=false).
+              O catálogo pode ser inspecionado, mas chamadas acontecem exclusivamente pelo Orquestrador.
+            </span>
+          </div>
+        )}
 
         <div className={`flex items-center gap-1 p-1 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
           {[

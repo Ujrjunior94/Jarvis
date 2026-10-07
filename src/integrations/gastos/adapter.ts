@@ -1,4 +1,5 @@
 import { IntegrationStatus } from '../../types/jarvis';
+import { getRelativeDate } from '../../lib/datetime';
 
 export interface GastoPessoalItem {
   id: string;
@@ -13,7 +14,7 @@ class ControleGastosAdapter {
   private sandboxItems: GastoPessoalItem[] = [
     {
       id: 'gasto_01',
-      data: '2026-10-06',
+      data: getRelativeDate(0),
       descricao: 'Abastecimento parcial combustível',
       categoria: 'Combustível',
       valor: 85.0,
@@ -21,7 +22,7 @@ class ControleGastosAdapter {
     },
     {
       id: 'gasto_02',
-      data: '2026-10-05',
+      data: getRelativeDate(-1),
       descricao: 'Supermercado Semanal',
       categoria: 'Alimentação',
       valor: 342.9,
@@ -29,7 +30,7 @@ class ControleGastosAdapter {
     },
     {
       id: 'gasto_03',
-      data: '2026-10-03',
+      data: getRelativeDate(-3),
       descricao: 'Assinatura Internet Fibra',
       categoria: 'Moradia / Contas',
       valor: 129.9,

@@ -7,6 +7,9 @@ import {
   Settings,
   Sun,
   Moon,
+  Shield,
+  Activity,
+  Clock,
 } from 'lucide-react';
 import {
   AttachmentInput,
@@ -16,54 +19,111 @@ import {
   ToolResult,
   UserPreferences,
 } from './types/jarvis';
-import { PWAInstallButton } from './components/PWAInstallButton';
 import { ChatView } from './components/ChatView';
 import { DashboardView } from './components/DashboardView';
 import { ToolsSandboxView } from './components/ToolsSandboxView';
 import { MemoryView } from './components/MemoryView';
 import { SettingsView } from './components/SettingsView';
+import { PWAInstallButton } from './components/PWAInstallButton';
+import { getCurrentDateTime } from './lib/datetime';
 
-type ActiveSection = 'chat' | 'dashboard' | 'tools' | 'memory' | 'settings';
+type AppTab = 'chat' | 'dashboard' | 'tools' | 'memory' | 'settings';
 
-export function App() {
-  const [activeSection, setActiveSection] = useState<ActiveSection>('chat');
+export default function App() {
+  const [activeTab, setActiveTab] = useState<AppTab>('chat');
+  const [isDark, setIsDark] = useState<boolean>(true);
   const [memory, setMemory] = useState<Memory | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [toolsList, setToolsList] = useState<any[]>([]);
+  const [tools, setTools] = useState<any[]>([]);
   const [healthData, setHealthData] = useState<any>(null);
   const [simulationFlags, setSimulationFlags] = useState({
     postoOffline: false,
     rotaOffline: false,
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [currentTimeDisplay, setCurrentTimeDisplay] = useState<string>(() => {
+    const dt = getCurrentDateTime();
+    return `${dt.time} · ${dt.dayOfWeek}`;
+  });
 
-  const fetchInitialData = useCallback(async () => {
+  // Atualizador de relógio em tempo real (America/Bahia)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const dt = getCurrentDateTime();
+      setCurrentTimeDisplay(`${dt.time} · ${dt.dayOfWeek}`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Sincronizar classe dark no HTML
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
+
+  const fetchHealth = useCallback(async () => {
     try {
-      const [memRes, intRes, toolsRes, healthRes] = await Promise.all([
-        fetch('/api/memory'),
-        fetch('/api/integrations'),
-        fetch('/api/tools'),
-        fetch('/api/health'),
-      ]);
-      if (memRes.ok) setMemory(await memRes.json());
-      if (intRes.ok) {
-        const intJson = await intRes.json();
-        setProjects(intJson.projects || []);
-        if (intJson.simulationFlags) setSimulationFlags(intJson.simulationFlags);
+      const res = await fetch('/api/health');
+      if (res.ok) {
+        const data = await res.json();
+        setHealthData(data);
       }
-      if (toolsRes.ok) {
-        const toolsJson = await toolsRes.json();
-        setToolsList(toolsJson.tools || []);
+    } catch {
+      // Falha silenciosa em dev
+    }
+  }, []);
+
+  const fetchMemory = useCallback(async () => {
+    try {
+      const res = await fetch('/api/memory');
+      if (res.ok) {
+        const data = await res.json();
+        setMemory(data);
+        if (data.preferences?.theme) {
+          setIsDark(data.preferences.theme === 'dark');
+        }
       }
-      if (healthRes.ok) setHealthData(await healthRes.json());
-    } catch (err) {
-      console.error('Erro ao inicializar interface do JARVIS:', err);
+    } catch {
+      // Falha silenciosa
+    }
+  }, []);
+
+  const fetchTools = useCallback(async () => {
+    try {
+      const res = await fetch('/api/tools');
+      if (res.ok) {
+        const data = await res.json();
+        setTools(data.tools || []);
+      }
+    } catch {
+      // Falha silenciosa
+    }
+  }, []);
+
+  const fetchIntegrations = useCallback(async () => {
+    try {
+      const res = await fetch('/api/integrations');
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.projects || []);
+        if (data.simulationFlags) {
+          setSimulationFlags(data.simulationFlags);
+        }
+      }
+    } catch {
+      // Falha silenciosa
     }
   }, []);
 
   useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
+    fetchHealth();
+    fetchMemory();
+    fetchTools();
+    fetchIntegrations();
+  }, [fetchHealth, fetchMemory, fetchTools, fetchIntegrations]);
 
   const handleSendMessage = async (text: string, attachment?: AttachmentInput) => {
     setIsLoading(true);
@@ -77,14 +137,15 @@ export function App() {
           attachment,
         }),
       });
-      const data = await res.json();
-      if (data.memory) {
-        setMemory(data.memory);
-      } else {
-        await fetchInitialData();
+      if (res.ok) {
+        const data = await res.json();
+        if (data.memory) {
+          setMemory(data.memory);
+        }
       }
     } finally {
       setIsLoading(false);
+      fetchHealth();
     }
   };
 
@@ -95,14 +156,19 @@ export function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: 'Confirmo a operação.',
           confirmedToken: token,
+          conversationId: 'conv_principal',
         }),
       });
-      const data = await res.json();
-      if (data.memory) setMemory(data.memory);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.memory) {
+          setMemory(data.memory);
+        }
+      }
     } finally {
       setIsLoading(false);
+      fetchHealth();
     }
   };
 
@@ -113,25 +179,41 @@ export function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: 'Cancelar operação.',
           cancelToken: token,
+          conversationId: 'conv_principal',
         }),
       });
-      const data = await res.json();
-      if (data.memory) setMemory(data.memory);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.memory) {
+          setMemory(data.memory);
+        }
+      }
     } finally {
       setIsLoading(false);
+      fetchHealth();
     }
   };
 
   const handleClearHistory = async () => {
-    const res = await fetch('/api/memory', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'clear_conversation' }),
-    });
-    const data = await res.json();
-    if (data.memory) setMemory(data.memory);
+    try {
+      const res = await fetch('/api/memory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'clear_conversation',
+          conversationId: 'conv_principal',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.memory) {
+          setMemory(data.memory);
+        }
+      }
+    } catch {
+      // Silencioso
+    }
   };
 
   const handleExecuteToolDirect = async (
@@ -142,11 +224,78 @@ export function App() {
     const res = await fetch('/api/tools', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ toolName, params, confirmedToken }),
+      body: JSON.stringify({
+        toolName,
+        params,
+        confirmedToken,
+      }),
     });
-    const result = await res.json();
-    await fetchInitialData();
-    return result;
+    const json = await res.json();
+    fetchMemory();
+    return json;
+  };
+
+  const handleAddFact = async (fact: string, category: LongTermFact['category']) => {
+    const res = await fetch('/api/memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'add_fact',
+        fact,
+        category,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.memory) setMemory(data.memory);
+    }
+  };
+
+  const handleRemoveFact = async (factId: string) => {
+    const res = await fetch('/api/memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'remove_fact',
+        factId,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.memory) setMemory(data.memory);
+    }
+  };
+
+  const handleClearLogs = async () => {
+    const res = await fetch('/api/memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'clear_logs' }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.memory) setMemory(data.memory);
+    }
+  };
+
+  const handleUpdatePreferences = async (partial: Partial<UserPreferences>) => {
+    const res = await fetch('/api/memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'update_preferences',
+        preferences: partial,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.memory) {
+        setMemory(data.memory);
+        if (data.preferences?.theme) {
+          setIsDark(data.preferences.theme === 'dark');
+        }
+      }
+    }
   };
 
   const handleToggleOfflineSimulation = async (
@@ -156,232 +305,280 @@ export function App() {
     const res = await fetch('/api/integrations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target, simulateOffline: offline }),
+      body: JSON.stringify({
+        target,
+        simulateOffline: offline,
+      }),
     });
     if (res.ok) {
       const data = await res.json();
       setProjects(data.projects || []);
-      setSimulationFlags(data.simulationFlags);
-      await fetchInitialData();
+      setSimulationFlags(data.simulationFlags || simulationFlags);
+      fetchHealth();
     }
   };
 
-  const handleAddFact = async (fact: string, category: LongTermFact['category']) => {
-    const res = await fetch('/api/memory', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'add_fact', fact, category }),
-    });
-    const data = await res.json();
-    if (data.memory) setMemory(data.memory);
-  };
-
-  const handleRemoveFact = async (factId: string) => {
-    const res = await fetch('/api/memory', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'remove_fact', factId }),
-    });
-    const data = await res.json();
-    if (data.memory) setMemory(data.memory);
-  };
-
-  const handleClearLogs = async () => {
-    const res = await fetch('/api/memory', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'clear_logs' }),
-    });
-    const data = await res.json();
-    if (data.memory) setMemory(data.memory);
-  };
-
-  const handleUpdatePreferences = async (preferences: Partial<UserPreferences>) => {
-    const res = await fetch('/api/memory', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'update_preferences', preferences }),
-    });
-    const data = await res.json();
-    if (data.memory) setMemory(data.memory);
-  };
-
-  const isDark = (memory?.preferences.theme || 'dark') === 'dark';
-
-  const currentMessages =
-    memory?.conversations?.[0]?.messages || [];
+  const currentConvo = memory?.conversations.find((c) => c.id === 'conv_principal');
+  const messages = currentConvo ? currentConvo.messages : [];
 
   return (
     <div
-      className={`min-h-screen flex flex-col transition-colors ${
+      className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${
         isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
       }`}
     >
-      {/* Top Bar Contract: 3 Zonas Limpas (Wordmark | 5 Nav Links | 2 Primary Actions) */}
+      {/* CABEÇALHO GLOBAL */}
       <header
-        className={`sticky top-0 z-30 h-14 px-4 md:px-6 flex items-center justify-between border-b backdrop-blur-md ${
+        className={`sticky top-0 z-40 border-b backdrop-blur-md px-4 py-2.5 transition-colors ${
           isDark
-            ? 'bg-slate-950/85 border-slate-800/80'
-            : 'bg-white/85 border-slate-200'
+            ? 'bg-slate-950/80 border-slate-800/80'
+            : 'bg-white/80 border-slate-200 shadow-xs'
         }`}
       >
-        {/* Zona 1: Brand Wordmark */}
-        <a
-          href="#chat"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveSection('chat');
-          }}
-          className={`text-lg font-bold tracking-wider font-display ${
-            isDark ? 'text-white' : 'text-slate-900'
-          }`}
-        >
-          JARVIS
-        </a>
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          {/* Logo e Nome */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 via-indigo-600 to-cyan-500 flex items-center justify-center shadow-md shadow-sky-500/20">
+              <span className="font-display font-black text-white text-base tracking-wider">J</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-display font-black text-lg tracking-tight bg-gradient-to-r from-sky-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent">
+                  JARVIS
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 font-semibold">
+                  V1.1 CORE
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Núcleo Ativo
+                </span>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-slate-500" />
+                  {currentTimeDisplay}
+                </span>
+              </div>
+            </div>
+          </div>
 
-        {/* Zona 2: Links de Navegação Desktop */}
-        <nav className="hidden md:flex items-center gap-6 text-xs font-medium">
-          {[
-            { id: 'chat', label: 'Assistente' },
-            { id: 'dashboard', label: 'Ecossistemas' },
-            { id: 'tools', label: 'Ferramentas' },
-            { id: 'memory', label: 'Memória' },
-            { id: 'settings', label: 'Configurações' },
-          ].map((item) => (
+          {/* Badges de Estado e Ações Topo */}
+          <div className="flex items-center gap-2">
+            {/* Status do AI Provider e Memória */}
+            <div className="hidden lg:flex items-center gap-2">
+              <div
+                className={`text-[11px] font-mono px-2.5 py-1 rounded-lg border ${
+                  isDark ? 'bg-slate-900/90 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+                }`}
+              >
+                IA: <span className="text-sky-400 font-semibold">{healthData?.aiProvider?.provider || 'Gemini'}</span>{' '}
+                <span className="text-slate-500">({healthData?.aiProvider?.model || '3.8-flash'})</span>
+              </div>
+              <div
+                className={`text-[11px] font-mono px-2.5 py-1 rounded-lg border ${
+                  isDark ? 'bg-slate-900/90 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+                }`}
+              >
+                Memória:{' '}
+                <span className="text-emerald-400 font-semibold">
+                  {healthData?.memoryMode || 'IN_MEMORY'}
+                </span>
+              </div>
+            </div>
+
+            {/* PWA Install Button */}
+            <PWAInstallButton />
+
+            {/* Alternador de Tema */}
             <button
-              key={item.id}
-              onClick={() => setActiveSection(item.id as ActiveSection)}
-              className={`py-1 transition-colors whitespace-nowrap ${
-                activeSection === item.id
-                  ? 'text-sky-400 border-b-2 border-sky-400 font-semibold'
-                  : isDark
-                  ? 'text-slate-400 hover:text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+              onClick={() => {
+                const next = !isDark;
+                setIsDark(next);
+                handleUpdatePreferences({ theme: next ? 'dark' : 'light' });
+              }}
+              title={isDark ? 'Ativar Modo Claro' : 'Ativar Modo Escuro'}
+              className={`p-2 rounded-xl border transition-colors ${
+                isDark
+                  ? 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                  : 'bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'
               }`}
             >
-              {item.label}
+              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
             </button>
-          ))}
-        </nav>
-
-        {/* Zona 3: 1-2 Ações Primárias (PWA Install + Alternador de Tema) */}
-        <div className="flex items-center gap-2.5">
-          <PWAInstallButton />
-          <button
-            onClick={() =>
-              handleUpdatePreferences({ theme: isDark ? 'light' : 'dark' })
-            }
-            className={`min-h-[38px] min-w-[38px] rounded-lg flex items-center justify-center border transition-colors ${
-              isDark
-                ? 'border-slate-800 bg-slate-900 text-slate-300 hover:text-sky-400'
-                : 'border-slate-200 bg-slate-100 text-slate-700 hover:text-sky-600'
-            }`}
-            title={isDark ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
-          >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          </div>
         </div>
       </header>
 
-      {/* Conteúdo Principal */}
-      <main className="flex-1">
-        {!memory ? (
-          <div className="flex items-center justify-center h-64 text-xs text-slate-400">
-            Inicializando núcleo de orquestração JARVIS...
+      {/* ÁREA DE CONTEÚDO PRINCIPAL */}
+      <main className="flex-1 flex flex-col">
+        {activeTab === 'chat' && (
+          <div className="flex-1 flex flex-col">
+            <ChatView
+              messages={messages}
+              memory={memory || {
+                shortTerm: { items: [] },
+                longTermFacts: [],
+                preferences: {
+                  voiceEnabled: true,
+                  autoSpeakResponses: false,
+                  speechRate: 1,
+                  theme: 'dark',
+                  aiProvider: 'gemini',
+                  aiModel: 'gemini-3.8-flash',
+                  requireCriticalConfirmation: true,
+                  requireConfirmLevelApproval: true,
+                  showStructuredToolOutput: true,
+                },
+                conversations: [],
+                toolHistory: [],
+                pendingConfirmations: [],
+              }}
+              isLoading={isLoading}
+              onSendMessage={handleSendMessage}
+              onConfirmAction={handleConfirmAction}
+              onCancelAction={handleCancelAction}
+              onClearHistory={handleClearHistory}
+              isDark={isDark}
+            />
           </div>
-        ) : (
-          <>
-            {activeSection === 'chat' && (
-              <ChatView
-                messages={currentMessages}
-                memory={memory}
-                isLoading={isLoading}
-                onSendMessage={handleSendMessage}
-                onConfirmAction={handleConfirmAction}
-                onCancelAction={handleCancelAction}
-                onClearHistory={handleClearHistory}
-                isDark={isDark}
-              />
-            )}
+        )}
 
-            {activeSection === 'dashboard' && (
-              <DashboardView
-                projects={projects}
-                memory={memory}
-                healthData={healthData}
-                simulationFlags={simulationFlags}
-                onToggleOfflineSimulation={handleToggleOfflineSimulation}
-                onQuickPrompt={(prompt) => {
-                  setActiveSection('chat');
-                  handleSendMessage(prompt);
-                }}
-                isDark={isDark}
-              />
-            )}
+        {activeTab === 'dashboard' && (
+          <DashboardView
+            projects={projects}
+            memory={memory || {
+              shortTerm: { items: [] },
+              longTermFacts: [],
+              preferences: {
+                voiceEnabled: true,
+                autoSpeakResponses: false,
+                speechRate: 1,
+                theme: 'dark',
+                aiProvider: 'gemini',
+                aiModel: 'gemini-3.8-flash',
+                requireCriticalConfirmation: true,
+                requireConfirmLevelApproval: true,
+                showStructuredToolOutput: true,
+              },
+              conversations: [],
+              toolHistory: [],
+              pendingConfirmations: [],
+            }}
+            healthData={healthData}
+            simulationFlags={simulationFlags}
+            onToggleOfflineSimulation={handleToggleOfflineSimulation}
+            onQuickPrompt={(prompt) => {
+              setActiveTab('chat');
+              handleSendMessage(prompt);
+            }}
+            isDark={isDark}
+          />
+        )}
 
-            {activeSection === 'tools' && (
-              <ToolsSandboxView
-                tools={toolsList}
-                onExecuteToolDirect={handleExecuteToolDirect}
-                isDark={isDark}
-              />
-            )}
+        {activeTab === 'tools' && (
+          <ToolsSandboxView
+            tools={tools}
+            sandboxEnabled={healthData?.security?.toolSandboxEnabled ?? true}
+            onExecuteToolDirect={handleExecuteToolDirect}
+            isDark={isDark}
+          />
+        )}
 
-            {activeSection === 'memory' && (
-              <MemoryView
-                memory={memory}
-                onAddFact={handleAddFact}
-                onRemoveFact={handleRemoveFact}
-                onClearLogs={handleClearLogs}
-                isDark={isDark}
-              />
-            )}
+        {activeTab === 'memory' && (
+          <MemoryView
+            memory={memory || {
+              shortTerm: { items: [] },
+              longTermFacts: [],
+              preferences: {
+                voiceEnabled: true,
+                autoSpeakResponses: false,
+                speechRate: 1,
+                theme: 'dark',
+                aiProvider: 'gemini',
+                aiModel: 'gemini-3.8-flash',
+                requireCriticalConfirmation: true,
+                requireConfirmLevelApproval: true,
+                showStructuredToolOutput: true,
+              },
+              conversations: [],
+              toolHistory: [],
+              pendingConfirmations: [],
+            }}
+            onAddFact={handleAddFact}
+            onRemoveFact={handleRemoveFact}
+            onClearLogs={handleClearLogs}
+            isDark={isDark}
+          />
+        )}
 
-            {activeSection === 'settings' && (
-              <SettingsView
-                memory={memory}
-                projects={projects}
-                healthData={healthData}
-                onUpdatePreferences={handleUpdatePreferences}
-                isDark={isDark}
-              />
-            )}
-          </>
+        {activeTab === 'settings' && (
+          <SettingsView
+            memory={memory || {
+              shortTerm: { items: [] },
+              longTermFacts: [],
+              preferences: {
+                voiceEnabled: true,
+                autoSpeakResponses: false,
+                speechRate: 1,
+                theme: 'dark',
+                aiProvider: 'gemini',
+                aiModel: 'gemini-3.8-flash',
+                requireCriticalConfirmation: true,
+                requireConfirmLevelApproval: true,
+                showStructuredToolOutput: true,
+              },
+              conversations: [],
+              toolHistory: [],
+              pendingConfirmations: [],
+            }}
+            projects={projects}
+            healthData={healthData}
+            onUpdatePreferences={handleUpdatePreferences}
+            isDark={isDark}
+          />
         )}
       </main>
 
-      {/* Barra de Navegação Inferior Mobile-First (Thumb Zone Ergonomics) */}
+      {/* BARRA DE NAVEGAÇÃO INFERIOR MOBILE-FIRST */}
       <nav
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 items-center h-16 border-t backdrop-blur-md ${
+        className={`fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur-lg px-2 py-1.5 transition-colors ${
           isDark
-            ? 'bg-slate-950/90 border-slate-800 text-slate-400'
-            : 'bg-white/95 border-slate-200 text-slate-600'
+            ? 'bg-slate-950/90 border-slate-800/80'
+            : 'bg-white/90 border-slate-200 shadow-lg'
         }`}
       >
-        {[
-          { id: 'chat', label: 'JARVIS', icon: <MessageSquare className="w-5 h-5" /> },
-          { id: 'dashboard', label: 'Projetos', icon: <LayoutDashboard className="w-5 h-5" /> },
-          { id: 'tools', label: 'Tools', icon: <Wrench className="w-5 h-5" /> },
-          { id: 'memory', label: 'Memória', icon: <Brain className="w-5 h-5" /> },
-          { id: 'settings', label: 'Ajustes', icon: <Settings className="w-5 h-5" /> },
-        ].map((tab) => {
-          const active = activeSection === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveSection(tab.id as ActiveSection)}
-              className={`min-h-[44px] flex flex-col items-center justify-center transition-colors ${
-                active ? 'text-sky-400 font-semibold' : ''
-              }`}
-            >
-              {tab.icon}
-              <span className="text-[10px] tracking-tight mt-1">{tab.label}</span>
-            </button>
-          );
-        })}
+        <div className="max-w-md mx-auto grid grid-cols-5 gap-1">
+          {[
+            { id: 'chat', label: 'Chat', icon: <MessageSquare className="w-5 h-5" /> },
+            { id: 'dashboard', label: 'Painel', icon: <LayoutDashboard className="w-5 h-5" /> },
+            { id: 'tools', label: 'Ferramentas', icon: <Wrench className="w-5 h-5" /> },
+            { id: 'memory', label: 'Memória', icon: <Brain className="w-5 h-5" /> },
+            { id: 'settings', label: 'Ajustes', icon: <Settings className="w-5 h-5" /> },
+          ].map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as AppTab)}
+                className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all ${
+                  isActive
+                    ? 'text-sky-400 bg-sky-500/10 font-medium scale-105'
+                    : isDark
+                    ? 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {item.icon}
+                <span className="text-[11px] mt-0.5 tracking-tight font-medium">
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
     </div>
   );
 }
-
-export default App;

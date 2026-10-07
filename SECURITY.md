@@ -5,19 +5,63 @@
 Toda ferramenta no JARVIS possui obrigatoriamente um dos três níveis definidos em `ToolPermission`:
 
 1. **`READ`**:
-   - Operações puramente de consulta ou análise (ex: `consultarEscala`, `consultarGanhos`, `analisarEscala`).
-   - Executadas imediatamente pelo orquestrador.
+   - Operações puramente de leitura e análise sem impacto colateral no sistema (ex: `consultarEscala`, `consultarGanhos`, `consultarGastos`, `analisarEscala`).
+   - Execução imediata autorizada.
 
 2. **`CONFIRM`**:
-   - Operações que criam ou alteram registros (ex: `registrarGasto`, `editarGasto`, `validarEscala`).
-   - O JARVIS interrompe a execução automática, gera um `confirmationToken` no `PermissionGuard` e solicita aprovação ao usuário.
+   - Operações que alteram dados operacionais ou validam processos importantes (ex: `validarEscala`, `registrarGasto`, `editarGasto`).
+   - Requer aprovação explícita do usuário via modal, botão na interface ou resposta verbal ("sim", "confirmo", "autorizo").
 
 3. **`CRITICAL`**:
-   - Operações destrutivas ou irreversíveis (ex: `excluirGasto`).
-   - O JARVIS **nunca** executa automaticamente. Primeiro localiza o registro afetado, apresenta os detalhes exatos (*"Encontrei a despesa de R$ 85,00 registrada em combustível. Deseja realmente excluir?"*) e aguarda confirmação explícita via botão ou comando.
+   - Ações destrutivas com perda irrecuperável de dados (ex: `excluirGasto`).
+   - O orquestrador bloqueia a execução direta e emite uma solicitação de confirmação com resumo do impacto e token criptográfico temporário.
 
-## 2. Proteção de Segredos e Chaves de API
+---
 
-- **Backend-Only Secrets**: Chaves como `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `SUPABASE_ANON_KEY`, `POSTO_ADM_API_TOKEN` e `ROTAPLANNER_API_TOKEN` são acessadas exclusivamente no servidor (`server.ts` / `src/api/routes.ts`).
-- **Zero Exposição no Frontend**: A página de Configurações permite alternar provedores e preferências, mas jamais exibe ou trafega chaves secretas para o navegador.
-- **Sanitização de Logs**: O módulo `src/lib/logger.ts` mascara automaticamente qualquer propriedade cujo nome contenha `key`, `token`, `secret` ou `password` com `[REDACTED]`.
+## 2. Tokens de Confirmação (`PermissionGuard`)
+
+Cada solicitação de confirmação gerada possui:
+- **Token seguro:** gerado com 24 bytes de entropia aleatória (`crypto.randomBytes(24)`).
+- **Validade Temporal:** TTL estrito de 5 minutos (`expiresAt`). Tokens após esse período são rejeitados com código `EXPIRED`.
+- **Uso Único:** o token é destruído no momento da confirmação. Qualquer tentativa subsequente é rejeitada como `REUSED`.
+- **Vínculo de Conversa e Usuário:** o token só pode ser consumido pela mesma conversa (`conversationId`) e mesmo usuário (`userId`) onde foi solicitado.
+- **Cancelamento:** suporte a cancelamento explícito antes do consumo.
+
+---
+
+## 3. Proteção do Endpoint `/api/tools` (`TOOL_SANDBOX_ENABLED`)
+
+- A execução arbitrária direta de ferramentas através de `POST /api/tools` é restrita por `TOOL_SANDBOX_ENABLED`.
+- Quando `TOOL_SANDBOX_ENABLED=false` (padrão em produção), o endpoint retorna HTTP 403 Forbidden.
+- Todas as operações legítimas devem fluir pelo fluxo do Orquestrador:
+  `Usuário -> Autenticação -> Intent Engine -> PermissionGuard -> ToolRegistry -> Tool`.
+
+---
+
+## 4. Segurança de Uploads e Arquivos
+
+- **MIME Types Permitidos:** `image/png`, `image/jpeg`, `image/webp`, `application/pdf`.
+- **Tamanho Máximo por Arquivo:** 10 MB (10.485.760 bytes).
+- **Limite por Mensagem:** máximo de 4 arquivos simultâneos.
+- Arquivos que violem essas diretrizes são rejeitados antes de qualquer processamento de IA.
+
+---
+
+## 5. Tratamento de Erros e Prevenção de Vazamento de Segredos
+
+- Nenhuma stack trace ou caminho interno de arquivo é exposto ao cliente.
+- O sanitizador de erros (`sanitizeErrorMessage`) mascara automaticamente:
+  - Chaves de API (`AIza...`, `sk-...`) -> `[REDACTED_API_KEY]`
+  - Tokens Bearer -> `Bearer [REDACTED_TOKEN]`
+  - Caminhos de arquivos no servidor -> `[INTERNAL_PATH]`
+- Todas as respostas de erro seguem o padrão estruturado:
+  ```json
+  {
+    "success": false,
+    "error": {
+      "category": "AUTH_ERROR",
+      "message": "Mensagem amigável e segura",
+      "timestamp": "2026-10-07T07:00:00.000-03:00"
+    }
+  }
+  ```

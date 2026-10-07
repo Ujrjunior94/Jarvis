@@ -34,9 +34,18 @@ export function useVoiceAssistant(onTranscriptReady: (text: string) => void) {
         setIsListening(false);
       };
 
-      recognition.onerror = () => {
+      recognition.onerror = (event: any) => {
         setIsListening(false);
-        setVoiceError('Microfone bloqueado pelo navegador/iframe ou sem áudio detectado.');
+        const err = event?.error;
+        if (err === 'not-allowed') {
+          setVoiceError('Permissão de microfone negada no navegador. Permita o microfone ou use o teclado.');
+        } else if (err === 'no-speech') {
+          setVoiceError('Nenhum áudio detectado. Fale próximo ao microfone ou digite sua mensagem.');
+        } else if (err === 'network') {
+          setVoiceError('Erro de conexão no serviço de fala. O teclado permanece 100% funcional.');
+        } else {
+          setVoiceError('Microfone bloqueado ou sem áudio. O chat por texto está totalmente operacional.');
+        }
       };
 
       recognition.onend = () => {

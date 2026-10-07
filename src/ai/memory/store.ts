@@ -7,8 +7,13 @@ import {
 } from '../../types/jarvis';
 import { jarvisLogger } from '../../lib/logger';
 import { permissionGuard } from '../../permissions/guard';
+import { getCurrentDateTime } from '../../lib/datetime';
+import { createMemoryProvider, MemoryMode, MemoryProvider } from './provider';
 
 class JarvisMemoryStore {
+  private provider: MemoryProvider;
+
+  // Cache em memória para acesso síncrono rápido
   private shortTerm: Memory['shortTerm'] = {
     lastIntent: undefined,
     lastProject: undefined,
@@ -19,62 +24,79 @@ class JarvisMemoryStore {
     items: [],
   };
 
-  private longTermFacts: LongTermFact[] = [
-    {
-      id: 'fact_1',
-      category: 'sistema',
-      fact: 'O usuário gerencia o sistema Posto ADM (repositório Projeto-posto1) para escalas, turnos e férias de frentistas.',
-      source: 'Configuração Inicial V1',
-      createdAt: '2026-10-06T10:00:00Z',
-    },
-    {
-      id: 'fact_2',
-      category: 'sistema',
-      fact: 'O usuário utiliza o RotaPlanner para acompanhar rotas, entregas, ganhos, combustível e manutenção.',
-      source: 'Configuração Inicial V1',
-      createdAt: '2026-10-06T10:00:00Z',
-    },
-    {
-      id: 'fact_3',
-      category: 'preferencia',
-      fact: 'Prefere respostas diretas, objetivas e em português do Brasil, sempre exigindo confirmação para ações críticas.',
-      source: 'Configuração Inicial V1',
-      createdAt: '2026-10-06T10:00:00Z',
-    },
-  ];
-
-  private preferences: UserPreferences = {
-    voiceEnabled: true,
-    autoSpeakResponses: false,
-    speechRate: 1.05,
-    theme: 'dark',
-    aiProvider: (process.env.AI_PROVIDER as UserPreferences['aiProvider']) || 'gemini',
-    aiModel: process.env.AI_MODEL || 'gemini-3.8-flash',
-    requireCriticalConfirmation: true,
-    requireConfirmLevelApproval: true,
-    showStructuredToolOutput: true,
-  };
-
+  private longTermFacts: LongTermFact[] = [];
+  private preferences: UserPreferences;
   private conversations: Map<string, Conversation> = new Map();
 
   constructor() {
+    this.provider = createMemoryProvider();
+    const now = getCurrentDateTime();
+
+    this.preferences = {
+      voiceEnabled: true,
+      autoSpeakResponses: false,
+      speechRate: 1.05,
+      theme: 'dark',
+      aiProvider: (process.env.AI_PROVIDER as UserPreferences['aiProvider']) || 'gemini',
+      aiModel: process.env.AI_MODEL || 'gemini-3.8-flash',
+      requireCriticalConfirmation: true,
+      requireConfirmLevelApproval: true,
+      showStructuredToolOutput: true,
+    };
+
+    this.longTermFacts = [
+      {
+        id: 'fact_1',
+        category: 'sistema',
+        fact: 'O usuário gerencia o sistema Posto ADM (repositório Projeto-posto1) para escalas, turnos e férias de frentistas.',
+        source: 'Configuração Inicial V1',
+        createdAt: now.iso,
+      },
+      {
+        id: 'fact_2',
+        category: 'sistema',
+        fact: 'O usuário utiliza o RotaPlanner para acompanhar rotas, entregas, ganhos, combustível e manutenção.',
+        source: 'Configuração Inicial V1',
+        createdAt: now.iso,
+      },
+      {
+        id: 'fact_3',
+        category: 'preferencia',
+        fact: 'Prefere respostas diretas, objetivas e em português do Brasil, sempre exigindo confirmação para ações críticas.',
+        source: 'Configuração Inicial V1',
+        createdAt: now.iso,
+      },
+    ];
+
     const defaultConvId = 'conv_principal';
     this.conversations.set(defaultConvId, {
       id: defaultConvId,
       title: 'Central de Comando JARVIS',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now.iso,
+      updatedAt: now.iso,
       messages: [
         {
           id: 'msg_welcome',
           role: 'assistant',
           content:
-            'Olá. Núcleo JARVIS V1 operacional. Estou conectado aos adaptadores de **Posto ADM**, **RotaPlanner** e preparado para o **Controle de Gastos**.\n\nVocê pode pedir para consultar escalas, verificar quem trabalha amanhã, calcular seus ganhos da semana descontando combustível ou auditar inconsistências na escala.',
-          timestamp: new Date().toISOString(),
+            'Olá. Núcleo JARVIS V1.1 operacional. Estou conectado aos adaptadores de **Posto ADM**, **RotaPlanner** e preparado para o **Controle de Gastos**.\n\nVocê pode pedir para consultar escalas, verificar quem trabalha amanhã, calcular seus ganhos da semana descontando combustível ou auditar inconsistências na escala.',
+          timestamp: now.iso,
           providerUsed: 'system-init',
         },
       ],
     });
+  }
+
+  public getMemoryMode(): MemoryMode {
+    return this.provider.getMode();
+  }
+
+  public getProviderName(): string {
+    return this.provider.name;
+  }
+
+  public isPersistentConfigured(): boolean {
+    return this.provider.isConfigured() && this.provider.getMode() === 'SUPABASE';
   }
 
   public getFullMemory(): Memory {
@@ -100,7 +122,7 @@ class JarvisMemoryStore {
     const item = {
       key,
       value,
-      updatedAt: new Date().toISOString(),
+      updatedAt: getCurrentDateTime().iso,
     };
     if (existingIdx >= 0) {
       this.shortTerm.items[existingIdx] = item;
@@ -119,11 +141,11 @@ class JarvisMemoryStore {
     source = 'Conversa'
   ): LongTermFact {
     const newFact: LongTermFact = {
-      id: `fact_${Date.now()}`,
+      id: `fact_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       category,
       fact: fact.trim(),
       source,
-      createdAt: new Date().toISOString(),
+      createdAt: getCurrentDateTime().iso,
     };
     this.longTermFacts.unshift(newFact);
     return newFact;
@@ -150,11 +172,12 @@ class JarvisMemoryStore {
   public getConversation(id = 'conv_principal'): Conversation {
     let conv = this.conversations.get(id);
     if (!conv) {
+      const now = getCurrentDateTime();
       conv = {
         id,
-        title: `Sessão ${new Date().toLocaleDateString('pt-BR')}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        title: `Sessão ${now.formattedPtBR.split(' às ')[0]}`,
+        createdAt: now.iso,
+        updatedAt: now.iso,
         messages: [],
       };
       this.conversations.set(id, conv);
@@ -165,24 +188,25 @@ class JarvisMemoryStore {
   public appendMessage(conversationId: string, message: ConversationMessage): void {
     const conv = this.getConversation(conversationId);
     conv.messages.push(message);
-    conv.updatedAt = new Date().toISOString();
+    conv.updatedAt = getCurrentDateTime().iso;
     if (conv.messages.length === 2 && message.role === 'user') {
       conv.title = message.content.slice(0, 42);
     }
   }
 
   public clearConversation(conversationId = 'conv_principal'): Conversation {
+    const now = getCurrentDateTime();
     const conv: Conversation = {
       id: conversationId,
       title: 'Nova Sessão JARVIS',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now.iso,
+      updatedAt: now.iso,
       messages: [
         {
           id: `msg_${Date.now()}`,
           role: 'assistant',
           content: 'Histórico da sessão reiniciado. Contexto de curto prazo limpo. Como posso ajudar?',
-          timestamp: new Date().toISOString(),
+          timestamp: now.iso,
         },
       ],
     };
@@ -203,18 +227,21 @@ class JarvisMemoryStore {
     return jarvisLogger.getLogs(50);
   }
 
+  /**
+   * Retorna o status real da persistência do banco de dados sem enganar o usuário ou a API
+   */
   public getDatabaseStatus(): {
-    mode: 'SUPABASE_READY_MEMORY' | 'POSTGRES_CONNECTED';
+    mode: MemoryMode;
     configured: boolean;
     details: string;
   } {
-    const hasSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
+    const isSupabase = this.isPersistentConfigured();
     return {
-      mode: hasSupabase ? 'POSTGRES_CONNECTED' : 'SUPABASE_READY_MEMORY',
-      configured: true,
-      details: hasSupabase
-        ? 'Conectado ao Supabase PostgreSQL'
-        : 'Repositório em Memória Estruturada (Pronto para migração Supabase/PostgreSQL)',
+      mode: isSupabase ? 'SUPABASE' : 'IN_MEMORY',
+      configured: isSupabase,
+      details: isSupabase
+        ? 'Conectado e persistindo dados no Supabase / PostgreSQL'
+        : 'Memória volátil em RAM (MEMORY_MODE=IN_MEMORY). Banco de dados persistente não configurado.',
     };
   }
 }

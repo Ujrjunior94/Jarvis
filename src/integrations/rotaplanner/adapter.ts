@@ -1,4 +1,5 @@
 import { IntegrationStatus } from '../../types/jarvis';
+import { getCurrentDateTime, getRelativeDate, resolvePeriodInterval } from '../../lib/datetime';
 
 export interface ResumoGanhosRota {
   periodo: string;
@@ -107,9 +108,11 @@ class RotaPlannerAdapter {
       };
     }
 
+    const currentDt = getCurrentDateTime();
+
     if (norm.includes('hoje')) {
       return {
-        periodo: 'Hoje (06/10/2026)',
+        periodo: `Hoje (${currentDt.date})`,
         isMockData: this.isMockMode(),
         ganhoBrutoTotal: 420.0,
         totalEntregasConcluidas: 14,
@@ -117,13 +120,14 @@ class RotaPlannerAdapter {
         mediaPorEntrega: 30.0,
         mediaPorKm: 3.56,
         detalhamentoDiario: [
-          { data: '2026-10-06', dia: 'Terça-feira', ganhoBruto: 420.0, entregas: 14, kmRodados: 118 },
+          { data: currentDt.date, dia: currentDt.dayOfWeek, ganhoBruto: 420.0, entregas: 14, kmRodados: 118 },
         ],
       };
     }
 
+    const intervalSemana = resolvePeriodInterval('esta_semana');
     return {
-      periodo: 'Semana Atual (01/10 a 06/10/2026)',
+      periodo: `Semana Atual (${intervalSemana.inicio} a ${intervalSemana.fim})`,
       isMockData: this.isMockMode(),
       ganhoBrutoTotal: 2450.0,
       totalEntregasConcluidas: 82,
@@ -131,12 +135,12 @@ class RotaPlannerAdapter {
       mediaPorEntrega: 29.88,
       mediaPorKm: 3.58,
       detalhamentoDiario: [
-        { data: '2026-10-01', dia: 'Quinta-feira', ganhoBruto: 410.0, entregas: 14, kmRodados: 115 },
-        { data: '2026-10-02', dia: 'Sexta-feira', ganhoBruto: 495.0, entregas: 17, kmRodados: 138 },
-        { data: '2026-10-03', dia: 'Sábado', ganhoBruto: 540.0, entregas: 18, kmRodados: 142 },
-        { data: '2026-10-04', dia: 'Domingo', ganhoBruto: 265.0, entregas: 8, kmRodados: 74 },
-        { data: '2026-10-05', dia: 'Segunda-feira', ganhoBruto: 320.0, entregas: 11, kmRodados: 98 },
-        { data: '2026-10-06', dia: 'Terça-feira', ganhoBruto: 420.0, entregas: 14, kmRodados: 118 },
+        { data: getRelativeDate(-5), dia: 'Quinta-feira', ganhoBruto: 410.0, entregas: 14, kmRodados: 115 },
+        { data: getRelativeDate(-4), dia: 'Sexta-feira', ganhoBruto: 495.0, entregas: 17, kmRodados: 138 },
+        { data: getRelativeDate(-3), dia: 'Sábado', ganhoBruto: 540.0, entregas: 18, kmRodados: 142 },
+        { data: getRelativeDate(-2), dia: 'Domingo', ganhoBruto: 265.0, entregas: 8, kmRodados: 74 },
+        { data: getRelativeDate(-1), dia: 'Segunda-feira', ganhoBruto: 320.0, entregas: 11, kmRodados: 98 },
+        { data: currentDt.date, dia: currentDt.dayOfWeek, ganhoBruto: 420.0, entregas: 14, kmRodados: 118 },
       ],
     };
   }
@@ -201,8 +205,9 @@ class RotaPlannerAdapter {
       };
     }
 
+    const intervalSemana = resolvePeriodInterval('esta_semana');
     return {
-      periodo: 'Semana Atual (01/10 a 06/10/2026)',
+      periodo: `Semana Atual (${intervalSemana.inicio} a ${intervalSemana.fim})`,
       isMockData: this.isMockMode(),
       despesaTotal: 615.0,
       combustivelTotal: 435.0,
@@ -211,7 +216,7 @@ class RotaPlannerAdapter {
       itens: [
         {
           id: 'desp_01',
-          data: '2026-10-01',
+          data: getRelativeDate(-5),
           categoria: 'Combustível',
           valor: 180.0,
           descricao: 'Gasolina Comum - Posto Matriz',
@@ -220,7 +225,7 @@ class RotaPlannerAdapter {
         },
         {
           id: 'desp_02',
-          data: '2026-10-03',
+          data: getRelativeDate(-3),
           categoria: 'Combustível',
           valor: 170.0,
           descricao: 'Gasolina Comum - Rota Sul',
@@ -229,14 +234,14 @@ class RotaPlannerAdapter {
         },
         {
           id: 'desp_03',
-          data: '2026-10-04',
+          data: getRelativeDate(-2),
           categoria: 'Manutenção',
           valor: 110.0,
           descricao: 'Alinhamento, balanceamento e calibragem',
         },
         {
           id: 'desp_04',
-          data: '2026-10-06',
+          data: getCurrentDateTime().date,
           categoria: 'Combustível',
           valor: 85.0,
           descricao: 'Abastecimento parcial turno manhã',
@@ -272,7 +277,7 @@ class RotaPlannerAdapter {
     this.ensureAvailable();
     return {
       isMockData: this.isMockMode(),
-      dataReferencia: data || '2026-10-06',
+      dataReferencia: data || getCurrentDateTime().date,
       rotasPlanejadas: [
         {
           id: 'rota_101',
